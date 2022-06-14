@@ -38,7 +38,7 @@ const router = new Router();
 router
    .get('/', (context) => {
       console.log('Calling root route');
-      context.response.body = 'Welcome to Ricotte API';
+      context.response.body = { message: 'Welcome to Ricotte API' };
    })
    .get('/createBattle', (context) => {
       console.log('Calling createBattle');
@@ -58,13 +58,24 @@ router
       const attackingUnitId = context?.params?.attackingUnitId;
       const defendingUnitId = context?.params?.defendingUnitId;
       console.log('Calling attack', battleId, attackingUnitId, defendingUnitId);
-      const battle = game.attack(
-         battleId,
-         Number(attackingUnitId),
-         Number(defendingUnitId),
-      );
-      console.log('Return battle', battle);
-      context.response.body = battle;
+      try {
+         const battle = game.attack(
+            battleId,
+            Number(attackingUnitId),
+            Number(defendingUnitId),
+         );
+         console.log('Return battle', battle);
+         context.response.body = battle;
+      } catch (err) {
+         console.error(
+            'An error occured while attacking',
+            battleId,
+            attackingUnitId,
+            defendingUnitId,
+            err,
+         );
+         context.response.body = { error: err };
+      }
    });
 
 const app = new Application();
