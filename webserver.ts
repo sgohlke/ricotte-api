@@ -44,6 +44,10 @@ router
       console.log('Calling createBattle');
       const battleId = game.createBattle(playerId, opponentId);
       console.log('Created battle', battleId);
+      const origin = context.request.headers.get('origin')
+      if (origin) {
+         context.response.headers.set("Access-Control-Allow-Origin", origin);
+      }
       context.response.body = { battleId: battleId };
    })
    .get('/getBattle/:battleId', (context) => {
