@@ -38,6 +38,10 @@ const router = new Router();
 router
    .get('/', (context) => {
       console.log('Calling root route');
+      const origin = context.request.headers.get('origin')
+      if (origin) {
+         context.response.headers.set("Access-Control-Allow-Origin", origin);
+      }
       context.response.body = { message: 'Welcome to Ricotte API' };
    })
    .get('/createBattle', (context) => {
@@ -55,6 +59,10 @@ router
       console.log('Calling getBattle', battleId);
       const battle = game.getBattle(battleId);
       console.log('Return battle', battle);
+      const origin = context.request.headers.get('origin')
+      if (origin) {
+         context.response.headers.set("Access-Control-Allow-Origin", origin);
+      }
       context.response.body = battle;
    })
    .get('/attack/:battleId/:attackingUnitId/:defendingUnitId', (context) => {
@@ -62,6 +70,10 @@ router
       const attackingUnitId = context?.params?.attackingUnitId;
       const defendingUnitId = context?.params?.defendingUnitId;
       console.log('Calling attack', battleId, attackingUnitId, defendingUnitId);
+      const origin = context.request.headers.get('origin')
+      if (origin) {
+         context.response.headers.set("Access-Control-Allow-Origin", origin);
+      }
       try {
          const battle = game.attack(
             battleId,
