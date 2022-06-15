@@ -88,9 +88,9 @@ router
             battleId,
             attackingUnitId,
             defendingUnitId,
-            err,
+            err.message,
          );
-         context.response.body = { error: err };
+         context.response.body = { error: err.message };
       }
    });
 
