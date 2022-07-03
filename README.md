@@ -3,9 +3,9 @@
 API-Deployment-status: early alpha
 
 API for Ricotte no Mori game. The API uses
-[rpg-ts](https://github.com/sgohlke/rpg-ts) library to handle the RPG and
-battle logic. Project is using Deno Deploy. Caution: This application needs a
-Deno version with Typescript 4.3 or higher. (i.e. Deno v.1.11.0 or higher)
+[rpg-ts](https://github.com/sgohlke/rpg-ts) library to handle the RPG and battle
+logic. Project is using Deno Deploy. Caution: This application needs a Deno
+version with Typescript 4.3 or higher. (i.e. Deno v.1.11.0 or higher)
 
 # Use API
 

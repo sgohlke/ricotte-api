@@ -1,5 +1,5 @@
 export {
    GamePlayer,
    PlayerAgainstAIGame,
-} from 'https://raw.githubusercontent.com/sgohlke/rpg-ts/master/src/index.ts';
-export { Application, Router } from 'https://deno.land/x/oak/mod.ts';
+} from 'https://raw.githubusercontent.com/sgohlke/rpg-ts/v0.1.0/src/index.ts';
+export { serve } from 'https://deno.land/std@0.146.0/http/server.ts';
