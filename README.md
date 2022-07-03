@@ -27,12 +27,13 @@ deployment is released.
 
 ### Units
 
+- 1: "JellySlime", { hp: 6, atk: 2, def: 1 }
 - 1: "Slime", { hp: 5, atk: 2, def: 1 }
 - 2: "Punchbag", { hp: 1, atk: 1, def: 1 }
 
 ### Players
 
-- p1: Player (i.e. your player character), has one "Slime"
+- p1: Player (i.e. your player character), has one "JellySlime"
 - p2: Opponent (i.e. your AI opponent), has one "Slime" and one "Punchbag"
 
 ## Routes
