@@ -4,19 +4,16 @@ const port = 3017;
 const game = new PlayerAgainstAIGame();
 
 const jellySlimeUnit = {
-   joinNumber: 1,
    name: 'JellySlime',
    defaultStatus: { hp: 6, atk: 2, def: 1 },
 };
 
 const slimeUnit = {
-   joinNumber: 1,
    name: 'Slime',
    defaultStatus: { hp: 5, atk: 2, def: 1 },
 };
 
 const punchbagUnit = {
-   joinNumber: 2,
    name: 'Punchbag',
    defaultStatus: { hp: 1, atk: 1, def: 1 },
 };
@@ -24,14 +21,15 @@ const punchbagUnit = {
 const player: GamePlayer = new GamePlayer({
    playerId: 'p1',
    name: 'Player',
-   units: [jellySlimeUnit],
 });
+player.addUnit(jellySlimeUnit);
 
 const opponent: GamePlayer = new GamePlayer({
    playerId: 'p2',
    name: 'Opponent',
-   units: [slimeUnit, punchbagUnit],
 });
+opponent.addUnit(slimeUnit);
+opponent.addUnit(punchbagUnit);
 
 const playerId = game.createPlayer(player);
 const opponentId = game.createPlayer(opponent);
