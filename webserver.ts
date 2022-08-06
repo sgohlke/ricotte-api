@@ -1,4 +1,4 @@
-import { GamePlayer, PlayerAgainstAIGame, serve } from './deps.ts';
+import { GamePlayer, PlayerAgainstAIGame, randomCounterAttackFunction, serve } from './deps.ts';
 
 const port = 3017;
 const game = new PlayerAgainstAIGame();
@@ -46,51 +46,106 @@ function logAndReturnErrorResponse(
    });
 }
 
-function createDataResponse(data: unknown, headers: Headers): Response {
-   return new Response(JSON.stringify(data), { headers: headers });
+function createDataResponse(data: unknown, responseHeaders: Headers): Response {
+   return new Response(JSON.stringify(data), { headers: responseHeaders });
 }
 
-function createBattleResponse(headers: Headers): Response {
+function createBattleResponse(responseHeaders: Headers): Response {
    console.log('Calling createBattle');
    const battleId = game.createBattle(playerId, opponentId);
    if (battleId) {
       console.log('Created battle', battleId);
-      return createDataResponse({ battleId: battleId }, headers);
+      return createDataResponse({ battleId: battleId }, responseHeaders);
    } else {
-      return logAndReturnErrorResponse(headers, 'Creating battle failed', 500);
+      return logAndReturnErrorResponse(responseHeaders, 'Creating battle failed', 500);
    }
 }
 
-function createGetBattleResponse(pathname: string, headers: Headers): Response {
+
+function createUserBattleResponse(pathname: string, responseHeaders: Headers): Response {
+   const urlParams = pathname.split('/');
+   // Expected param format: [ "", "createUserBattle", "p3"]
+   if (!urlParams || urlParams.length < 3) {
+      return logAndReturnErrorResponse(
+         responseHeaders,
+         `Not enough parameters provied in URL path: ${pathname}`,
+         400,
+      );
+   }
+
+   // Only one param is used at the moment, maybe add opponentId later
+   const playerId = urlParams[2];
+   
+   console.log('Calling createUserBattleResponse', playerId);
+   if (!playerId) {
+      return logAndReturnErrorResponse(
+         responseHeaders,
+         `Cannot find playerId in URL path: ${pathname}`,
+         400,
+      );
+   }
+
+   const battleId = game.createBattle(playerId, opponentId, randomCounterAttackFunction, false) ;
+   if (battleId) {
+      console.log('Created battle', battleId);
+      return createDataResponse({ battleId: battleId }, responseHeaders);
+   } else {
+      return logAndReturnErrorResponse(responseHeaders, 'Creating battle failed', 500);
+   }
+}
+
+function createGetBattleResponse(pathname: string, responseHeaders: Headers, requestHeaders: Headers): Response {
    const battleId = pathname.substring(pathname.lastIndexOf('/') + 1);
    console.log('Calling getBattle', battleId);
    if (!battleId) {
       return logAndReturnErrorResponse(
-         headers,
+         responseHeaders,
          `Cannot find battleId in URL path: ${pathname}`,
          400,
       );
    }
 
-   const battle = game.getBattle(battleId);
-   if (battle) {
-      console.log('Return battle', JSON.stringify(battle));
-      return createDataResponse(battle, headers);
-   } else {
+   try {
+      const authHeader = requestHeaders.get('Authorization')
+      let accessToken;
+      if (authHeader === null) {
+         accessToken = undefined
+      } else if (!authHeader.includes('Bearer')) {
+         return logAndReturnErrorResponse(
+            responseHeaders,
+            `Invalid Authorization header: ${authHeader}`,
+            400,
+         );
+      } else {
+        accessToken = authHeader.substring(authHeader.lastIndexOf('Bearer ') + 7);
+      }
+
+      const battle = game.getBattle(battleId, accessToken);
+      if (battle) {
+         console.log('Return battle', JSON.stringify(battle));
+         return createDataResponse(battle, responseHeaders);
+      } else {
+         return logAndReturnErrorResponse(
+            responseHeaders,
+            `Cannot find battle for battleId: ${battleId}`,
+            400,
+         );
+      }
+   } catch (error) {
       return logAndReturnErrorResponse(
-         headers,
-         `Cannot find battle for battleId: ${battleId}`,
+         responseHeaders,
+         `While fetching battle data an error occurred: ${error.message}`,
          400,
       );
    }
 }
 
-function createAttackResponse(pathname: string, headers: Headers): Response {
+function createAttackResponse(pathname: string, responseHeaders: Headers): Response {
    const urlParams = pathname.split('/');
    // Expected param format: [ "", "attack", "p1-p2_1656878824876", "1", "1" ]
    if (!urlParams || urlParams.length < 5) {
       return logAndReturnErrorResponse(
-         headers,
+         responseHeaders,
          `Not enough parameters provied in URL path: ${pathname}`,
          400,
       );
@@ -101,7 +156,7 @@ function createAttackResponse(pathname: string, headers: Headers): Response {
    const defendingUnitId = urlParams[4];
    if (!battleId || !attackingUnitId || !defendingUnitId) {
       return logAndReturnErrorResponse(
-         headers,
+         responseHeaders,
          `Error extracting parameters. battleId=${battleId}, attackingUnitId=${attackingUnitId} and defendingUnitId=${defendingUnitId}`,
          400,
       );
@@ -121,7 +176,7 @@ function createAttackResponse(pathname: string, headers: Headers): Response {
          Number(defendingUnitId),
       );
       console.log('Return battle after attack', JSON.stringify(battle));
-      return createDataResponse(battle, headers);
+      return createDataResponse(battle, responseHeaders);
    } catch (err) {
       console.error(
          'An error occured while attacking',
@@ -130,36 +185,135 @@ function createAttackResponse(pathname: string, headers: Headers): Response {
          defendingUnitId,
          err.message,
       );
-      return logAndReturnErrorResponse(headers, err.message, 400);
+      return logAndReturnErrorResponse(responseHeaders, err.message, 400);
    }
 }
 
-function handleRequest(request: Request): Response {
-   const headers = new Headers();
-   headers.set('content-type', 'application/json; charset=UTF-8');
+async function createRegisterPlayerResponse(request: Request, responseHeaders: Headers): Promise<Response> {
+   console.log('Calling createRegisterPlayerResponse');
+
+   if (request.method !== 'POST' ) {
+      return logAndReturnErrorResponse(
+         responseHeaders,
+         `Only POST method is allowed, but got: ${request.method}`,
+         405,
+      );
+   }
+
+   try {
+      const requestBody = await request.json()
+
+      if (requestBody && requestBody.playername && requestBody.username && requestBody.password) {
+         const newPlayer: GamePlayer = new GamePlayer({
+            playerId: 'doesnotmatter',
+            name: requestBody.playername,
+         });
+         newPlayer.addUnit(jellySlimeUnit);
+         return game.registerPlayer(newPlayer, requestBody.playername, requestBody.username, requestBody.password)
+         .then( playerId => {
+            console.log(`Successfully registered user: ${requestBody.username} with playerId ${playerId}`)
+            return createDataResponse({ playerId: playerId }, responseHeaders)
+         })
+         .catch( err => logAndReturnErrorResponse(
+            responseHeaders,
+            `Registering player failed with error: ${err.message}`,
+            400,
+            )
+         )
+      } else {
+         return logAndReturnErrorResponse(
+            responseHeaders,
+            'Request body does not have expected fields playername, username and password',
+            400,
+         );
+      }
+   } catch (error) {
+      console.log('createRegisterPlayerResponse, error is ', error);
+      return logAndReturnErrorResponse(
+         responseHeaders,
+         `Reading request body failed with error: ${error.message}`,
+         400,
+      );
+   }
+}
+
+
+async function createLoginPlayerResponse(request: Request, responseHeaders: Headers): Promise<Response> {
+   console.log('Calling createLoginPlayerResponse');
+
+   if (request.method !== 'POST' ) {
+      return logAndReturnErrorResponse(
+         responseHeaders,
+         `Only POST method is allowed, but got: ${request.method}`,
+         405,
+      );
+   }
+
+   try {
+      const requestBody = await request.json()
+      if (requestBody && requestBody.username && requestBody.password) {        
+         return game.login(requestBody.username, requestBody.password)
+         .then( accessToken => {
+            console.log(`Successfully logged in user: ${requestBody.username}`)
+            return createDataResponse({ accessToken: accessToken }, responseHeaders)
+         })
+         .catch( err => logAndReturnErrorResponse(
+            responseHeaders,
+            `Login for player ${requestBody.username} failed with error: ${err.message}`,
+            400,
+            )
+         )
+      } else {
+         return logAndReturnErrorResponse(
+            responseHeaders,
+            'Request body does not have expected fields username and password',
+            400,
+         );
+      }
+   } catch (error) {
+      console.log('createLoginPlayerResponse, error is ', error);
+      return logAndReturnErrorResponse(
+         responseHeaders,
+         `Reading request body failed with error: ${error.message}`,
+         400,
+      );
+   }
+}
+
+async function handleRequest(request: Request): Promise<Response> {
+   const responseHeaders = new Headers();
+   responseHeaders.set('content-type', 'application/json; charset=UTF-8');
 
    const origin = request.headers.get('origin');
    if (origin) {
-      headers.set('Access-Control-Allow-Origin', origin);
+      responseHeaders.set('Access-Control-Allow-Origin', origin);
    }
 
-   if (request.method !== 'GET') {
+   if (request.method !== 'GET' && request.method !== 'POST' ) {
       return logAndReturnErrorResponse(
-         headers,
-         `Only GET method is allowed, but got: ${request.method}`,
+         responseHeaders,
+         `Only GET and POST methods are allowed, but got: ${request.method}`,
          405,
       );
    }
 
    const { pathname } = new URL(request.url);
-   if (pathname.includes('/createBattle')) {
-      return createBattleResponse(headers);
+   if (pathname.includes('/createUserBattle')) {
+      return createUserBattleResponse(pathname, responseHeaders);
+   }
+   else if (pathname.includes('/createBattle')) {
+      return createBattleResponse(responseHeaders);
    } else if (pathname.includes('/getBattle')) {
-      return createGetBattleResponse(pathname, headers);
+      return createGetBattleResponse(pathname, responseHeaders, request.headers );
    } else if (pathname.includes('/attack')) {
-      return createAttackResponse(pathname, headers);
-   } else {
-      return createDataResponse({ message: 'Welcome to Ricotte API' }, headers);
+      return createAttackResponse(pathname, responseHeaders);
+   } else if (pathname.includes('/register')) {
+      return await createRegisterPlayerResponse(request, responseHeaders);
+   } else if (pathname.includes('/login')) {
+      return await createLoginPlayerResponse(request, responseHeaders);
+   }
+    else {
+      return createDataResponse({ message: 'Welcome to Ricotte API' }, responseHeaders);
    }
 }
 
