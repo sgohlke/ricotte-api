@@ -1,4 +1,9 @@
-import { GamePlayer, PlayerAgainstAIGame, randomCounterAttackFunction, serve } from './deps.ts';
+import {
+   GamePlayer,
+   PlayerAgainstAIGame,
+   randomCounterAttackFunction,
+   serve,
+} from './deps.ts';
 
 const port = 3017;
 const game = new PlayerAgainstAIGame();
@@ -57,12 +62,18 @@ function createBattleResponse(responseHeaders: Headers): Response {
       console.log('Created battle', battleId);
       return createDataResponse({ battleId: battleId }, responseHeaders);
    } else {
-      return logAndReturnErrorResponse(responseHeaders, 'Creating battle failed', 500);
+      return logAndReturnErrorResponse(
+         responseHeaders,
+         'Creating battle failed',
+         500,
+      );
    }
 }
 
-
-function createUserBattleResponse(pathname: string, responseHeaders: Headers): Response {
+function createUserBattleResponse(
+   pathname: string,
+   responseHeaders: Headers,
+): Response {
    const urlParams = pathname.split('/');
    // Expected param format: [ "", "createUserBattle", "p3"]
    if (!urlParams || urlParams.length < 3) {
@@ -75,7 +86,7 @@ function createUserBattleResponse(pathname: string, responseHeaders: Headers): R
 
    // Only one param is used at the moment, maybe add opponentId later
    const playerId = urlParams[2];
-   
+
    console.log('Calling createUserBattleResponse', playerId);
    if (!playerId) {
       return logAndReturnErrorResponse(
@@ -85,16 +96,29 @@ function createUserBattleResponse(pathname: string, responseHeaders: Headers): R
       );
    }
 
-   const battleId = game.createBattle(playerId, opponentId, randomCounterAttackFunction, false) ;
+   const battleId = game.createBattle(
+      playerId,
+      opponentId,
+      randomCounterAttackFunction,
+      false,
+   );
    if (battleId) {
       console.log('Created battle', battleId);
       return createDataResponse({ battleId: battleId }, responseHeaders);
    } else {
-      return logAndReturnErrorResponse(responseHeaders, 'Creating battle failed', 500);
+      return logAndReturnErrorResponse(
+         responseHeaders,
+         'Creating battle failed',
+         500,
+      );
    }
 }
 
-function createGetBattleResponse(pathname: string, responseHeaders: Headers, requestHeaders: Headers): Response {
+function createGetBattleResponse(
+   pathname: string,
+   responseHeaders: Headers,
+   requestHeaders: Headers,
+): Response {
    const battleId = pathname.substring(pathname.lastIndexOf('/') + 1);
    console.log('Calling getBattle', battleId);
    if (!battleId) {
@@ -106,10 +130,10 @@ function createGetBattleResponse(pathname: string, responseHeaders: Headers, req
    }
 
    try {
-      const authHeader = requestHeaders.get('Authorization')
+      const authHeader = requestHeaders.get('Authorization');
       let accessToken;
       if (authHeader === null) {
-         accessToken = undefined
+         accessToken = undefined;
       } else if (!authHeader.includes('Bearer')) {
          return logAndReturnErrorResponse(
             responseHeaders,
@@ -117,7 +141,9 @@ function createGetBattleResponse(pathname: string, responseHeaders: Headers, req
             400,
          );
       } else {
-        accessToken = authHeader.substring(authHeader.lastIndexOf('Bearer ') + 7);
+         accessToken = authHeader.substring(
+            authHeader.lastIndexOf('Bearer ') + 7,
+         );
       }
 
       const battle = game.getBattle(battleId, accessToken);
@@ -140,7 +166,10 @@ function createGetBattleResponse(pathname: string, responseHeaders: Headers, req
    }
 }
 
-function createAttackResponse(pathname: string, responseHeaders: Headers): Response {
+function createAttackResponse(
+   pathname: string,
+   responseHeaders: Headers,
+): Response {
    const urlParams = pathname.split('/');
    // Expected param format: [ "", "attack", "p1-p2_1656878824876", "1", "1" ]
    if (!urlParams || urlParams.length < 5) {
@@ -189,10 +218,13 @@ function createAttackResponse(pathname: string, responseHeaders: Headers): Respo
    }
 }
 
-async function createRegisterPlayerResponse(request: Request, responseHeaders: Headers): Promise<Response> {
+async function createRegisterPlayerResponse(
+   request: Request,
+   responseHeaders: Headers,
+): Promise<Response> {
    console.log('Calling createRegisterPlayerResponse');
 
-   if (request.method !== 'POST' ) {
+   if (request.method !== 'POST') {
       return logAndReturnErrorResponse(
          responseHeaders,
          `Only POST method is allowed, but got: ${request.method}`,
@@ -201,25 +233,39 @@ async function createRegisterPlayerResponse(request: Request, responseHeaders: H
    }
 
    try {
-      const requestBody = await request.json()
+      const requestBody = await request.json();
 
-      if (requestBody && requestBody.playername && requestBody.username && requestBody.password) {
+      if (
+         requestBody && requestBody.playername && requestBody.username &&
+         requestBody.password
+      ) {
          const newPlayer: GamePlayer = new GamePlayer({
             playerId: 'doesnotmatter',
             name: requestBody.playername,
          });
          newPlayer.addUnit(jellySlimeUnit);
-         return game.registerPlayer(newPlayer, requestBody.playername, requestBody.username, requestBody.password)
-         .then( playerId => {
-            console.log(`Successfully registered user: ${requestBody.username} with playerId ${playerId}`)
-            return createDataResponse({ playerId: playerId }, responseHeaders)
-         })
-         .catch( err => logAndReturnErrorResponse(
-            responseHeaders,
-            `Registering player failed with error: ${err.message}`,
-            400,
-            )
+         return game.registerPlayer(
+            newPlayer,
+            requestBody.playername,
+            requestBody.username,
+            requestBody.password,
          )
+            .then((playerId) => {
+               console.log(
+                  `Successfully registered user: ${requestBody.username} with playerId ${playerId}`,
+               );
+               return createDataResponse(
+                  { playerId: playerId },
+                  responseHeaders,
+               );
+            })
+            .catch((err) =>
+               logAndReturnErrorResponse(
+                  responseHeaders,
+                  `Registering player failed with error: ${err.message}`,
+                  400,
+               )
+            );
       } else {
          return logAndReturnErrorResponse(
             responseHeaders,
@@ -237,11 +283,13 @@ async function createRegisterPlayerResponse(request: Request, responseHeaders: H
    }
 }
 
-
-async function createLoginPlayerResponse(request: Request, responseHeaders: Headers): Promise<Response> {
+async function createLoginPlayerResponse(
+   request: Request,
+   responseHeaders: Headers,
+): Promise<Response> {
    console.log('Calling createLoginPlayerResponse');
 
-   if (request.method !== 'POST' ) {
+   if (request.method !== 'POST') {
       return logAndReturnErrorResponse(
          responseHeaders,
          `Only POST method is allowed, but got: ${request.method}`,
@@ -250,19 +298,25 @@ async function createLoginPlayerResponse(request: Request, responseHeaders: Head
    }
 
    try {
-      const requestBody = await request.json()
-      if (requestBody && requestBody.username && requestBody.password) {        
+      const requestBody = await request.json();
+      if (requestBody && requestBody.username && requestBody.password) {
          return game.login(requestBody.username, requestBody.password)
-         .then( accessToken => {
-            console.log(`Successfully logged in user: ${requestBody.username}`)
-            return createDataResponse({ accessToken: accessToken }, responseHeaders)
-         })
-         .catch( err => logAndReturnErrorResponse(
-            responseHeaders,
-            `Login for player ${requestBody.username} failed with error: ${err.message}`,
-            400,
-            )
-         )
+            .then((accessToken) => {
+               console.log(
+                  `Successfully logged in user: ${requestBody.username}`,
+               );
+               return createDataResponse(
+                  { accessToken: accessToken },
+                  responseHeaders,
+               );
+            })
+            .catch((err) =>
+               logAndReturnErrorResponse(
+                  responseHeaders,
+                  `Login for player ${requestBody.username} failed with error: ${err.message}`,
+                  400,
+               )
+            );
       } else {
          return logAndReturnErrorResponse(
             responseHeaders,
@@ -289,7 +343,7 @@ async function handleRequest(request: Request): Promise<Response> {
       responseHeaders.set('Access-Control-Allow-Origin', origin);
    }
 
-   if (request.method !== 'GET' && request.method !== 'POST' ) {
+   if (request.method !== 'GET' && request.method !== 'POST') {
       return logAndReturnErrorResponse(
          responseHeaders,
          `Only GET and POST methods are allowed, but got: ${request.method}`,
@@ -300,20 +354,25 @@ async function handleRequest(request: Request): Promise<Response> {
    const { pathname } = new URL(request.url);
    if (pathname.includes('/createUserBattle')) {
       return createUserBattleResponse(pathname, responseHeaders);
-   }
-   else if (pathname.includes('/createBattle')) {
+   } else if (pathname.includes('/createBattle')) {
       return createBattleResponse(responseHeaders);
    } else if (pathname.includes('/getBattle')) {
-      return createGetBattleResponse(pathname, responseHeaders, request.headers );
+      return createGetBattleResponse(
+         pathname,
+         responseHeaders,
+         request.headers,
+      );
    } else if (pathname.includes('/attack')) {
       return createAttackResponse(pathname, responseHeaders);
    } else if (pathname.includes('/register')) {
       return await createRegisterPlayerResponse(request, responseHeaders);
    } else if (pathname.includes('/login')) {
       return await createLoginPlayerResponse(request, responseHeaders);
-   }
-    else {
-      return createDataResponse({ message: 'Welcome to Ricotte API' }, responseHeaders);
+   } else {
+      return createDataResponse(
+         { message: 'Welcome to Ricotte API' },
+         responseHeaders,
+      );
    }
 }
 
