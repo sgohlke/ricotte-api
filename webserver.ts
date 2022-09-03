@@ -301,12 +301,12 @@ async function createLoginPlayerResponse(
       const requestBody = await request.json();
       if (requestBody && requestBody.username && requestBody.password) {
          return game.login(requestBody.username, requestBody.password)
-            .then((accessToken) => {
+            .then((loggedInPlayer) => {
                console.log(
                   `Successfully logged in user: ${requestBody.username}`,
                );
                return createDataResponse(
-                  { accessToken: accessToken },
+                  loggedInPlayer,
                   responseHeaders,
                );
             })
