@@ -6,8 +6,8 @@ import {
 } from './deps.ts';
 
 interface AccessTokenOrError {
-   accessToken?: string
-   error?: string
+   accessToken?: string;
+   error?: string;
 }
 
 const port = 3017;
@@ -56,16 +56,20 @@ function logAndReturnErrorResponse(
    });
 }
 
-function extractAccessTokenFromAuthHeader(requestHeaders: Headers): AccessTokenOrError {
+function extractAccessTokenFromAuthHeader(
+   requestHeaders: Headers,
+): AccessTokenOrError {
    const authHeader = requestHeaders.get('Authorization');
    if (authHeader === null) {
-      return {error: 'No Authorizazion header'}
+      return { error: 'No Authorizazion header' };
    } else if (!authHeader.includes('Bearer')) {
-      return {error: `Invalid Authorization header: ${authHeader}`}
+      return { error: `Invalid Authorization header: ${authHeader}` };
    } else {
-      return {accessToken: authHeader.substring(
-         authHeader.lastIndexOf('Bearer ') + 7,
-      )};
+      return {
+         accessToken: authHeader.substring(
+            authHeader.lastIndexOf('Bearer ') + 7,
+         ),
+      };
    }
 }
 
@@ -91,7 +95,7 @@ function createBattleResponse(responseHeaders: Headers): Response {
 function createUserBattleResponse(
    pathname: string,
    responseHeaders: Headers,
-   requestHeaders: Headers
+   requestHeaders: Headers,
 ): Response {
    const urlParams = pathname.split('/');
    // Expected param format: [ "", "createUserBattle", "p3"]
@@ -115,7 +119,7 @@ function createUserBattleResponse(
       );
    }
 
-   const accessTokenOrError = extractAccessTokenFromAuthHeader(requestHeaders)
+   const accessTokenOrError = extractAccessTokenFromAuthHeader(requestHeaders);
    if (accessTokenOrError.error) {
       return logAndReturnErrorResponse(
          responseHeaders,
@@ -129,7 +133,7 @@ function createUserBattleResponse(
             opponentId,
             randomCounterAttackFunction,
             false,
-            accessTokenOrError.accessToken
+            accessTokenOrError.accessToken,
          );
          if (battleId) {
             console.log('Created battle', battleId);
@@ -167,26 +171,20 @@ function createGetBattleResponse(
    }
 
    try {
-      const accessTokenOrError = extractAccessTokenFromAuthHeader(requestHeaders)
-      if (accessTokenOrError.error) {
+      const accessTokenOrError = extractAccessTokenFromAuthHeader(
+         requestHeaders,
+      );
+      const battle = game.getBattle(battleId, accessTokenOrError.accessToken);
+      if (battle) {
+         console.log('Return battle', JSON.stringify(battle));
+         return createDataResponse(battle, responseHeaders);
+      } else {
          return logAndReturnErrorResponse(
             responseHeaders,
-            `Cannot find battle for battleId: ${battleId}. Error message is ${accessTokenOrError.error}`,
+            `Cannot find battle for battleId: ${battleId}`,
             400,
          );
-      } else {
-         const battle = game.getBattle(battleId, accessTokenOrError.accessToken);
-         if (battle) {
-            console.log('Return battle', JSON.stringify(battle));
-            return createDataResponse(battle, responseHeaders);
-         } else {
-            return logAndReturnErrorResponse(
-               responseHeaders,
-               `Cannot find battle for battleId: ${battleId}`,
-               400,
-            );
-         }
-      }      
+      }
    } catch (error) {
       return logAndReturnErrorResponse(
          responseHeaders,
@@ -199,7 +197,7 @@ function createGetBattleResponse(
 function createAttackResponse(
    pathname: string,
    responseHeaders: Headers,
-   requestHeaders: Headers
+   requestHeaders: Headers,
 ): Response {
    const urlParams = pathname.split('/');
    // Expected param format: [ "", "attack", "p1-p2_1656878824876", "1", "1" ]
@@ -229,13 +227,13 @@ function createAttackResponse(
       defendingUnitId,
    );
 
-   const accessTokenOrError = extractAccessTokenFromAuthHeader(requestHeaders)
+   const accessTokenOrError = extractAccessTokenFromAuthHeader(requestHeaders);
    try {
       const battle = game.attack(
          battleId,
          Number(attackingUnitId),
          Number(defendingUnitId),
-         accessTokenOrError.accessToken
+         accessTokenOrError.accessToken,
       );
       console.log('Return battle after attack', JSON.stringify(battle));
       return createDataResponse(battle, responseHeaders);
@@ -376,7 +374,10 @@ async function handleRequest(request: Request): Promise<Response> {
       responseHeaders.set('Access-Control-Allow-Origin', origin);
    }
 
-   if (request.method !== 'GET' && request.method !== 'POST' && request.method !== 'OPTIONS' ) {
+   if (
+      request.method !== 'GET' && request.method !== 'POST' &&
+      request.method !== 'OPTIONS'
+   ) {
       return logAndReturnErrorResponse(
          responseHeaders,
          `Only GET, POST and OPTIONS methods are allowed, but got: ${request.method}`,
@@ -389,31 +390,37 @@ async function handleRequest(request: Request): Promise<Response> {
       return new Response(undefined, { headers: responseHeaders });
    } else {
       const { pathname } = new URL(request.url);
-   if (pathname.includes('/createUserBattle')) {
-      return createUserBattleResponse(pathname, responseHeaders, request.headers);
-   } else if (pathname.includes('/createBattle')) {
-      return createBattleResponse(responseHeaders);
-   } else if (pathname.includes('/getBattle')) {
-      return createGetBattleResponse(
-         pathname,
-         responseHeaders,
-         request.headers,
-      );
-   } else if (pathname.includes('/attack')) {
-      return createAttackResponse(pathname, responseHeaders, request.headers);
-   } else if (pathname.includes('/register')) {
-      return await createRegisterPlayerResponse(request, responseHeaders);
-   } else if (pathname.includes('/login')) {
-      return await createLoginPlayerResponse(request, responseHeaders);
-   } else {
-      return createDataResponse(
-         { message: 'Welcome to Ricotte API' },
-         responseHeaders,
-      );
+      if (pathname.includes('/createUserBattle')) {
+         return createUserBattleResponse(
+            pathname,
+            responseHeaders,
+            request.headers,
+         );
+      } else if (pathname.includes('/createBattle')) {
+         return createBattleResponse(responseHeaders);
+      } else if (pathname.includes('/getBattle')) {
+         return createGetBattleResponse(
+            pathname,
+            responseHeaders,
+            request.headers,
+         );
+      } else if (pathname.includes('/attack')) {
+         return createAttackResponse(
+            pathname,
+            responseHeaders,
+            request.headers,
+         );
+      } else if (pathname.includes('/register')) {
+         return await createRegisterPlayerResponse(request, responseHeaders);
+      } else if (pathname.includes('/login')) {
+         return await createLoginPlayerResponse(request, responseHeaders);
+      } else {
+         return createDataResponse(
+            { message: 'Welcome to Ricotte API' },
+            responseHeaders,
+         );
+      }
    }
-   }
-
-   
 }
 
 serve(handleRequest, { port: port });
