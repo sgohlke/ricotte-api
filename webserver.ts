@@ -385,6 +385,7 @@ async function handleRequest(request: Request): Promise<Response> {
    }
 
    if (request.method === 'OPTIONS') {
+      responseHeaders.set('Access-Control-Allow-Headers', 'Authorization');
       return new Response(undefined, { headers: responseHeaders });
    } else {
       const { pathname } = new URL(request.url);
