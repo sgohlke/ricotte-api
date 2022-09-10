@@ -376,15 +376,18 @@ async function handleRequest(request: Request): Promise<Response> {
       responseHeaders.set('Access-Control-Allow-Origin', origin);
    }
 
-   if (request.method !== 'GET' && request.method !== 'POST') {
+   if (request.method !== 'GET' && request.method !== 'POST' && request.method !== 'OPTIONS' ) {
       return logAndReturnErrorResponse(
          responseHeaders,
-         `Only GET and POST methods are allowed, but got: ${request.method}`,
+         `Only GET, POST and OPTIONS methods are allowed, but got: ${request.method}`,
          405,
       );
    }
 
-   const { pathname } = new URL(request.url);
+   if (request.method === 'OPTIONS') {
+      return new Response(undefined, { headers: responseHeaders });
+   } else {
+      const { pathname } = new URL(request.url);
    if (pathname.includes('/createUserBattle')) {
       return createUserBattleResponse(pathname, responseHeaders, request.headers);
    } else if (pathname.includes('/createBattle')) {
@@ -407,6 +410,9 @@ async function handleRequest(request: Request): Promise<Response> {
          responseHeaders,
       );
    }
+   }
+
+   
 }
 
 serve(handleRequest, { port: port });
