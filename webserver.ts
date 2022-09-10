@@ -5,6 +5,11 @@ import {
    serve,
 } from './deps.ts';
 
+interface AccessTokenOrError {
+   accessToken?: string
+   error?: string
+}
+
 const port = 3017;
 const game = new PlayerAgainstAIGame();
 
@@ -51,6 +56,19 @@ function logAndReturnErrorResponse(
    });
 }
 
+function extractAccessTokenFromAuthHeader(requestHeaders: Headers): AccessTokenOrError {
+   const authHeader = requestHeaders.get('Authorization');
+   if (authHeader === null) {
+      return {error: 'No Authorizazion header'}
+   } else if (!authHeader.includes('Bearer')) {
+      return {error: `Invalid Authorization header: ${authHeader}`}
+   } else {
+      return {accessToken: authHeader.substring(
+         authHeader.lastIndexOf('Bearer ') + 7,
+      )};
+   }
+}
+
 function createDataResponse(data: unknown, responseHeaders: Headers): Response {
    return new Response(JSON.stringify(data), { headers: responseHeaders });
 }
@@ -73,6 +91,7 @@ function createBattleResponse(responseHeaders: Headers): Response {
 function createUserBattleResponse(
    pathname: string,
    responseHeaders: Headers,
+   requestHeaders: Headers
 ): Response {
    const urlParams = pathname.split('/');
    // Expected param format: [ "", "createUserBattle", "p3"]
@@ -96,21 +115,39 @@ function createUserBattleResponse(
       );
    }
 
-   const battleId = game.createBattle(
-      playerId,
-      opponentId,
-      randomCounterAttackFunction,
-      false,
-   );
-   if (battleId) {
-      console.log('Created battle', battleId);
-      return createDataResponse({ battleId: battleId }, responseHeaders);
-   } else {
+   const accessTokenOrError = extractAccessTokenFromAuthHeader(requestHeaders)
+   if (accessTokenOrError.error) {
       return logAndReturnErrorResponse(
          responseHeaders,
-         'Creating battle failed',
-         500,
+         `Creating battle failed for player ${playerId}. Error message is ${accessTokenOrError.error}`,
+         400,
       );
+   } else {
+      try {
+         const battleId = game.createBattle(
+            playerId,
+            opponentId,
+            randomCounterAttackFunction,
+            false,
+            accessTokenOrError.accessToken
+         );
+         if (battleId) {
+            console.log('Created battle', battleId);
+            return createDataResponse({ battleId: battleId }, responseHeaders);
+         } else {
+            return logAndReturnErrorResponse(
+               responseHeaders,
+               'Creating battle failed',
+               500,
+            );
+         }
+      } catch (error) {
+         return logAndReturnErrorResponse(
+            responseHeaders,
+            `Creating battle failed with error: ${error.message}`,
+            500,
+         );
+      }
    }
 }
 
@@ -130,33 +167,26 @@ function createGetBattleResponse(
    }
 
    try {
-      const authHeader = requestHeaders.get('Authorization');
-      let accessToken;
-      if (authHeader === null) {
-         accessToken = undefined;
-      } else if (!authHeader.includes('Bearer')) {
+      const accessTokenOrError = extractAccessTokenFromAuthHeader(requestHeaders)
+      if (accessTokenOrError.error) {
          return logAndReturnErrorResponse(
             responseHeaders,
-            `Invalid Authorization header: ${authHeader}`,
+            `Cannot find battle for battleId: ${battleId}. Error message is ${accessTokenOrError.error}`,
             400,
          );
       } else {
-         accessToken = authHeader.substring(
-            authHeader.lastIndexOf('Bearer ') + 7,
-         );
-      }
-
-      const battle = game.getBattle(battleId, accessToken);
-      if (battle) {
-         console.log('Return battle', JSON.stringify(battle));
-         return createDataResponse(battle, responseHeaders);
-      } else {
-         return logAndReturnErrorResponse(
-            responseHeaders,
-            `Cannot find battle for battleId: ${battleId}`,
-            400,
-         );
-      }
+         const battle = game.getBattle(battleId, accessTokenOrError.accessToken);
+         if (battle) {
+            console.log('Return battle', JSON.stringify(battle));
+            return createDataResponse(battle, responseHeaders);
+         } else {
+            return logAndReturnErrorResponse(
+               responseHeaders,
+               `Cannot find battle for battleId: ${battleId}`,
+               400,
+            );
+         }
+      }      
    } catch (error) {
       return logAndReturnErrorResponse(
          responseHeaders,
@@ -169,6 +199,7 @@ function createGetBattleResponse(
 function createAttackResponse(
    pathname: string,
    responseHeaders: Headers,
+   requestHeaders: Headers
 ): Response {
    const urlParams = pathname.split('/');
    // Expected param format: [ "", "attack", "p1-p2_1656878824876", "1", "1" ]
@@ -198,11 +229,13 @@ function createAttackResponse(
       defendingUnitId,
    );
 
+   const accessTokenOrError = extractAccessTokenFromAuthHeader(requestHeaders)
    try {
       const battle = game.attack(
          battleId,
          Number(attackingUnitId),
          Number(defendingUnitId),
+         accessTokenOrError.accessToken
       );
       console.log('Return battle after attack', JSON.stringify(battle));
       return createDataResponse(battle, responseHeaders);
@@ -353,7 +386,7 @@ async function handleRequest(request: Request): Promise<Response> {
 
    const { pathname } = new URL(request.url);
    if (pathname.includes('/createUserBattle')) {
-      return createUserBattleResponse(pathname, responseHeaders);
+      return createUserBattleResponse(pathname, responseHeaders, request.headers);
    } else if (pathname.includes('/createBattle')) {
       return createBattleResponse(responseHeaders);
    } else if (pathname.includes('/getBattle')) {
@@ -363,7 +396,7 @@ async function handleRequest(request: Request): Promise<Response> {
          request.headers,
       );
    } else if (pathname.includes('/attack')) {
-      return createAttackResponse(pathname, responseHeaders);
+      return createAttackResponse(pathname, responseHeaders, request.headers);
    } else if (pathname.includes('/register')) {
       return await createRegisterPlayerResponse(request, responseHeaders);
    } else if (pathname.includes('/login')) {
