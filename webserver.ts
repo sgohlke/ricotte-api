@@ -10,6 +10,7 @@ import {
 } from './deps.ts'
 
 const port = 3017
+
 const game = new PlayerAgainstAIGame()
 
 const jellySlimeUnit = {
@@ -43,6 +44,15 @@ opponent.addUnit(punchbagUnit)
 const playerId = game.createPlayer(player)
 const opponentId = game.createPlayer(opponent)
 
+let kv: Deno.Kv
+
+export async function getKv() {
+   if (!kv) {
+      kv = await Deno.openKv()
+   }
+   return kv
+}
+
 function createBattleResponse(responseHeaders: Headers): Response {
    console.log('Calling createBattle')
    const battleId = game.createBattle(playerId, opponentId)
@@ -51,8 +61,8 @@ function createBattleResponse(responseHeaders: Headers): Response {
       return returnDataResponse({ battleId: battleId }, responseHeaders)
    } else {
       return logAndReturnErrorResponse(
-         responseHeaders,
          'Creating battle failed',
+         responseHeaders,
          500,
       )
    }
@@ -67,8 +77,8 @@ function createUserBattleResponse(
    // Expected param format: [ "", "createUserBattle", "p3"]
    if (!urlParams || urlParams.length < 3) {
       return logAndReturnErrorResponse(
+         `Not enough parameters provided in URL path: ${pathname}`,
          responseHeaders,
-         `Not enough parameters provied in URL path: ${pathname}`,
          400,
       )
    }
@@ -79,8 +89,8 @@ function createUserBattleResponse(
    console.log('Calling createUserBattleResponse', playerId)
    if (!playerId) {
       return logAndReturnErrorResponse(
-         responseHeaders,
          `Cannot find playerId in URL path: ${pathname}`,
+         responseHeaders,
          400,
       )
    }
@@ -88,8 +98,8 @@ function createUserBattleResponse(
    const accessTokenOrError = extractAccessTokenFromAuthHeader(requestHeaders)
    if (accessTokenOrError.error) {
       return logAndReturnErrorResponse(
-         responseHeaders,
          `Creating battle failed for player ${playerId}. Error message is ${accessTokenOrError.error}`,
+         responseHeaders,
          400,
       )
    } else {
@@ -106,15 +116,15 @@ function createUserBattleResponse(
             return returnDataResponse({ battleId: battleId }, responseHeaders)
          } else {
             return logAndReturnErrorResponse(
-               responseHeaders,
                'Creating battle failed',
+               responseHeaders,
                500,
             )
          }
       } catch (error) {
          return logAndReturnErrorResponse(
-            responseHeaders,
             `Creating battle failed with error: ${error.message}`,
+            responseHeaders,
             500,
          )
       }
@@ -130,8 +140,8 @@ function createGetBattleResponse(
    console.log('Calling getBattle', battleId)
    if (!battleId) {
       return logAndReturnErrorResponse(
-         responseHeaders,
          `Cannot find battleId in URL path: ${pathname}`,
+         responseHeaders,
          400,
       )
    }
@@ -146,15 +156,15 @@ function createGetBattleResponse(
          return returnDataResponse(battle, responseHeaders)
       } else {
          return logAndReturnErrorResponse(
-            responseHeaders,
             `Cannot find battle for battleId: ${battleId}`,
+            responseHeaders,
             400,
          )
       }
    } catch (error) {
       return logAndReturnErrorResponse(
-         responseHeaders,
          `While fetching battle data an error occurred: ${error.message}`,
+         responseHeaders,
          400,
       )
    }
@@ -169,8 +179,8 @@ function createAttackResponse(
    // Expected param format: [ "", "attack", "p1-p2_1656878824876", "1", "1" ]
    if (!urlParams || urlParams.length < 5) {
       return logAndReturnErrorResponse(
-         responseHeaders,
          `Not enough parameters provied in URL path: ${pathname}`,
+         responseHeaders,
          400,
       )
    }
@@ -180,8 +190,8 @@ function createAttackResponse(
    const defendingUnitId = urlParams[4]
    if (!battleId || !attackingUnitId || !defendingUnitId) {
       return logAndReturnErrorResponse(
-         responseHeaders,
          `Error extracting parameters. battleId=${battleId}, attackingUnitId=${attackingUnitId} and defendingUnitId=${defendingUnitId}`,
+         responseHeaders,
          400,
       )
    }
@@ -205,13 +215,13 @@ function createAttackResponse(
       return returnDataResponse(battle, responseHeaders)
    } catch (err) {
       console.error(
-         'An error occured while attacking',
+         'An error occurred while attacking',
          battleId,
          attackingUnitId,
          defendingUnitId,
          err.message,
       )
-      return logAndReturnErrorResponse(responseHeaders, err.message, 400)
+      return logAndReturnErrorResponse(err.message, responseHeaders, 400)
    }
 }
 
@@ -223,8 +233,8 @@ async function createRegisterPlayerResponse(
 
    if (request.method !== 'POST') {
       return logAndReturnErrorResponse(
-         responseHeaders,
          `Only POST method is allowed, but got: ${request.method}`,
+         responseHeaders,
          405,
       )
    }
@@ -247,10 +257,22 @@ async function createRegisterPlayerResponse(
             requestBody.username,
             requestBody.password,
          )
-            .then((playerId) => {
+            .then(async (playerId) => {
                console.log(
                   `Successfully registered user: ${requestBody.username} with playerId ${playerId}`,
                )
+
+               const player = game.getPlayerAccount(playerId)
+               if (player) {
+                  const kv = await getKv()
+                  await kv.set(['playeraccounts', '' + playerId], player)
+                  /*
+                  for await (const entry of kv.list({ prefix: ['playeraccounts'] })) {
+                     console.log(`Player in KV, key is ${entry.key}, value is ${JSON.stringify(entry.value)}`)
+                  }
+                  */
+               }
+
                return returnDataResponse(
                   { playerId: playerId },
                   responseHeaders,
@@ -258,23 +280,23 @@ async function createRegisterPlayerResponse(
             })
             .catch((err) =>
                logAndReturnErrorResponse(
-                  responseHeaders,
                   `Registering player failed with error: ${err.message}`,
+                  responseHeaders,
                   400,
                )
             )
       } else {
          return logAndReturnErrorResponse(
-            responseHeaders,
             'Request body does not have expected fields playername, username and password',
+            responseHeaders,
             400,
          )
       }
    } catch (error) {
       console.log('createRegisterPlayerResponse, error is ', error)
       return logAndReturnErrorResponse(
-         responseHeaders,
          `Reading request body failed with error: ${error.message}`,
+         responseHeaders,
          400,
       )
    }
@@ -288,8 +310,8 @@ async function createLoginPlayerResponse(
 
    if (request.method !== 'POST') {
       return logAndReturnErrorResponse(
-         responseHeaders,
          `Only POST method is allowed, but got: ${request.method}`,
+         responseHeaders,
          405,
       )
    }
@@ -309,23 +331,23 @@ async function createLoginPlayerResponse(
             })
             .catch((err) =>
                logAndReturnErrorResponse(
-                  responseHeaders,
                   `Login for player ${requestBody.username} failed with error: ${err.message}`,
+                  responseHeaders,
                   400,
                )
             )
       } else {
          return logAndReturnErrorResponse(
-            responseHeaders,
             'Request body does not have expected fields username and password',
+            responseHeaders,
             400,
          )
       }
    } catch (error) {
       console.log('createLoginPlayerResponse, error is ', error)
       return logAndReturnErrorResponse(
-         responseHeaders,
          `Reading request body failed with error: ${error.message}`,
+         responseHeaders,
          400,
       )
    }
@@ -343,8 +365,8 @@ async function handleRequest(request: Request): Promise<Response> {
       request.method !== 'OPTIONS'
    ) {
       return logAndReturnErrorResponse(
-         responseHeaders,
          `Only GET, POST and OPTIONS methods are allowed, but got: ${request.method}`,
+         responseHeaders,
          405,
       )
    }
