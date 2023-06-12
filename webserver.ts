@@ -267,11 +267,11 @@ async function createRegisterPlayerResponse(
                if (player) {
                   const kv = await getKv()
                   await kv.set(['playeraccounts', '' + playerId], player)
-                  
+
                   for await (const entry of kv.list({ prefix: ['playeraccounts'] })) {
                      console.log(`Player in KV, key is ${entry.key}, value is ${JSON.stringify(entry.value)}`)
                   }
-                  
+
                }
                */
 
@@ -404,10 +404,6 @@ async function handleRequest(request: Request): Promise<Response> {
          return await createLoginPlayerResponse(request, responseHeaders)
       } else {
          console.log('pathname is', pathname)
-
-         const kv = await getKv()
-         await kv.delete(['playeraccounts', 'p3'])
-
          return returnDataResponse(
             { message: 'Welcome to Ricotte API' },
             responseHeaders,
