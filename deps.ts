@@ -3,10 +3,10 @@ export {
    PlayerAgainstAIGame,
    randomCounterAttackFunction,
 } from 'https://raw.githubusercontent.com/sgohlke/rpg-ts/v0.5.3/src/index.ts'
+export { extractAccessTokenFromAuthHeader } from 'https://raw.githubusercontent.com/sgohlke/deno-web/6.0.0/request/extractAccessTokenFromAuthHeader.ts'
 export {
-   extractAccessTokenFromAuthHeader,
-   JSON_CONTENT_TYPE_HEADER,
    logAndReturnErrorResponse,
    returnDataResponse,
-   startServer,
-} from 'https://raw.githubusercontent.com/sgohlke/deno-web/3.0.1/index.ts'
+} from 'https://raw.githubusercontent.com/sgohlke/deno-web/6.0.0/response/responseFunctions.ts'
+export { JSON_CONTENT_TYPE_HEADER } from 'https://raw.githubusercontent.com/sgohlke/deno-web/6.0.0/response/ResponseHeaders.ts'
+export { startServer } from 'https://raw.githubusercontent.com/sgohlke/deno-web/6.0.0/server/serverFunctions.ts'
