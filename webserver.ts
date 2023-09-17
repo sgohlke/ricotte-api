@@ -1,6 +1,7 @@
 import {
    extractAccessTokenFromAuthHeader,
    GamePlayer,
+   InMemoryPlayerDataStore,
    JSON_CONTENT_TYPE_HEADER,
    logAndReturnErrorResponse,
    PlayerAgainstAIGame,
@@ -11,7 +12,7 @@ import {
 
 const port = 3017
 
-const game = new PlayerAgainstAIGame()
+const playerDataStore = new InMemoryPlayerDataStore()
 
 const jellySlimeUnit = {
    name: 'JellySlime',
@@ -41,8 +42,9 @@ const opponent: GamePlayer = new GamePlayer({
 opponent.addUnit(slimeUnit)
 opponent.addUnit(punchbagUnit)
 
-const playerId = game.createPlayer(player)
-const opponentId = game.createPlayer(opponent)
+const playerId = playerDataStore.createPlayer(player)
+const opponentId = playerDataStore.createPlayer(opponent)
+const game = new PlayerAgainstAIGame(playerDataStore)
 
 let kv: Deno.Kv
 
