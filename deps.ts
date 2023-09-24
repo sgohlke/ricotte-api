@@ -3,7 +3,7 @@ export {
    InMemoryPlayerDataStore,
    PlayerAgainstAIGame,
    randomCounterAttackFunction,
-} from 'https://raw.githubusercontent.com/sgohlke/rpg-ts/v0.7.0/src/index.ts'
+} from 'https://raw.githubusercontent.com/sgohlke/rpg-ts/v0.8.1/src/index.ts'
 export { extractAccessTokenFromAuthHeader } from 'https://raw.githubusercontent.com/sgohlke/deno-web/6.0.1/request/extractAccessTokenFromAuthHeader.ts'
 export {
    logAndReturnErrorResponse,
