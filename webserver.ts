@@ -66,7 +66,7 @@ if (typeof tutorialBattlePlayerId === 'string') {
 }
 
 const maybeOpponentPlayerAccount = await playerDataStore
-   .getPlayerAccountForName(player.name)
+   .getPlayerAccountForName(opponent.name)
 const opponentId =
 maybeOpponentPlayerAccount && 'playerId' in maybeOpponentPlayerAccount
       ? maybeOpponentPlayerAccount.playerId
