@@ -3,6 +3,7 @@ import {
    GamePlayer,
    InMemoryPlayerDataStore,
    JSON_CONTENT_TYPE_HEADER,
+   KVPlayerDataStore,
    logAndReturnErrorResponse,
    PlayerAgainstAIGame,
    randomCounterAttackFunction,
@@ -12,7 +13,11 @@ import {
 
 const port = 3017
 
-const playerDataStore = new InMemoryPlayerDataStore()
+const useInMemoryDataStore = false
+
+const playerDataStore = useInMemoryDataStore
+   ? new InMemoryPlayerDataStore()
+   : new KVPlayerDataStore()
 
 const jellySlimeUnit = {
    name: 'JellySlime',
@@ -42,8 +47,28 @@ const opponent: GamePlayer = new GamePlayer({
 opponent.addUnit(slimeUnit)
 opponent.addUnit(punchbagUnit)
 
-const playerId = playerDataStore.createPlayer(player)
-const opponentId = playerDataStore.createPlayer(opponent)
+const tutorialBattlePlayerId = await playerDataStore.addPlayerAccount({
+   playerId: 'doesnotmatter',
+   name: player.name,
+   userName: player.name,
+   userPassword: crypto.randomUUID(),
+})
+if (typeof tutorialBattlePlayerId === 'string') {
+   player.playerId = tutorialBattlePlayerId
+   await playerDataStore.createPlayer(player)
+}
+
+const opponentId = await playerDataStore.addPlayerAccount({
+   playerId: 'doesnotmatter',
+   name: opponent.name,
+   userName: opponent.name,
+   userPassword: crypto.randomUUID(),
+})
+if (typeof opponentId === 'string') {
+   opponent.playerId = opponentId
+   await playerDataStore.createPlayer(opponent)
+}
+
 const game = new PlayerAgainstAIGame(playerDataStore)
 
 let kv: Deno.Kv
@@ -55,26 +80,47 @@ export async function getKv() {
    return kv
 }
 
-function createBattleResponse(responseHeaders: Headers): Response {
+/**
+ * Creates a tutorial battle
+ * @param responseHeaders The initial Response headers
+ * @returns A tutorial battle response
+ */
+async function createBattleResponse(
+   responseHeaders: Headers,
+): Promise<Response> {
    console.log('Calling createBattle')
-   const battleId = game.createBattle(playerId, opponentId)
-   if (battleId) {
-      console.log('Created battle', battleId)
-      return returnDataResponse({ battleId: battleId }, responseHeaders)
+   if (
+      tutorialBattlePlayerId && typeof tutorialBattlePlayerId === 'string' &&
+      opponentId && typeof opponentId === 'string'
+   ) {
+      const battleId = await game.createBattle(
+         tutorialBattlePlayerId,
+         opponentId,
+      )
+      if (battleId && typeof battleId === 'string') {
+         console.log('Created battle', battleId)
+         return returnDataResponse({ battleId: battleId }, responseHeaders)
+      } else {
+         return logAndReturnErrorResponse(
+            `Creating battle failed: ${battleId}`,
+            responseHeaders,
+            500,
+         )
+      }
    } else {
       return logAndReturnErrorResponse(
-         'Creating battle failed',
+         `An error occurred when using created tutorialBattlePlayerId ${tutorialBattlePlayerId} or opponentId ${opponentId} `,
          responseHeaders,
          500,
       )
    }
 }
 
-function createUserBattleResponse(
+async function createUserBattleResponse(
    pathname: string,
    responseHeaders: Headers,
    requestHeaders: Headers,
-): Response {
+): Promise<Response> {
    const urlParams = pathname.split('/')
    // Expected param format: [ "", "createUserBattle", "p3"]
    if (!urlParams || urlParams.length < 3) {
@@ -97,6 +143,14 @@ function createUserBattleResponse(
       )
    }
 
+   if (opponentId === undefined || typeof opponentId === 'object') {
+      return logAndReturnErrorResponse(
+         `Cannot select opponentId: ${opponentId}`,
+         responseHeaders,
+         500,
+      )
+   }
+
    const accessTokenOrError = extractAccessTokenFromAuthHeader(requestHeaders)
    if (accessTokenOrError.error) {
       return logAndReturnErrorResponse(
@@ -106,19 +160,19 @@ function createUserBattleResponse(
       )
    } else {
       try {
-         const battleId = game.createBattle(
+         const battleId = await game.createBattle(
             playerId,
             opponentId,
             randomCounterAttackFunction,
             false,
             accessTokenOrError.accessToken,
          )
-         if (battleId) {
+         if (battleId && typeof battleId === 'string') {
             console.log('Created battle', battleId)
             return returnDataResponse({ battleId: battleId }, responseHeaders)
          } else {
             return logAndReturnErrorResponse(
-               'Creating battle failed',
+               `Creating battle failed: ${battleId}`,
                responseHeaders,
                500,
             )
@@ -133,11 +187,11 @@ function createUserBattleResponse(
    }
 }
 
-function createGetBattleResponse(
+async function createGetBattleResponse(
    pathname: string,
    responseHeaders: Headers,
    requestHeaders: Headers,
-): Response {
+): Promise<Response> {
    const battleId = pathname.substring(pathname.lastIndexOf('/') + 1)
    console.log('Calling getBattle', battleId)
    if (!battleId) {
@@ -148,35 +202,35 @@ function createGetBattleResponse(
       )
    }
 
-   try {
-      const accessTokenOrError = extractAccessTokenFromAuthHeader(
-         requestHeaders,
-      )
-      const battle = game.getBattle(battleId, accessTokenOrError.accessToken)
-      if (battle) {
-         console.log('Return battle', JSON.stringify(battle))
-         return returnDataResponse(battle, responseHeaders)
-      } else {
-         return logAndReturnErrorResponse(
-            `Cannot find battle for battleId: ${battleId}`,
-            responseHeaders,
-            400,
-         )
-      }
-   } catch (error) {
+   const accessTokenOrError = extractAccessTokenFromAuthHeader(
+      requestHeaders,
+   )
+   const battle = await game.getBattle(battleId, accessTokenOrError.accessToken)
+   if (battle && 'battleId' in battle) {
+      console.log('Return battle', JSON.stringify(battle))
+      return returnDataResponse(battle, responseHeaders)
+   } else if (battle === undefined) {
       return logAndReturnErrorResponse(
-         `While fetching battle data an error occurred: ${error.message}`,
+         `Cannot find battle for battleId: ${battleId}`,
+         responseHeaders,
+         400,
+      )
+   } else {
+      return logAndReturnErrorResponse(
+         `While fetching battle data an error occurred: ${
+            JSON.stringify(battle)
+         }`,
          responseHeaders,
          400,
       )
    }
 }
 
-function createAttackResponse(
+async function createAttackResponse(
    pathname: string,
    responseHeaders: Headers,
    requestHeaders: Headers,
-): Response {
+): Promise<Response> {
    const urlParams = pathname.split('/')
    // Expected param format: [ "", "attack", "p1-p2_1656878824876", "1", "1" ]
    if (!urlParams || urlParams.length < 5) {
@@ -206,24 +260,26 @@ function createAttackResponse(
    )
 
    const accessTokenOrError = extractAccessTokenFromAuthHeader(requestHeaders)
-   try {
-      const battle = game.attack(
-         battleId,
-         Number(attackingUnitId),
-         Number(defendingUnitId),
-         accessTokenOrError.accessToken,
-      )
+   const battle = await game.attack(
+      battleId,
+      Number(attackingUnitId),
+      Number(defendingUnitId),
+      accessTokenOrError.accessToken,
+   )
+
+   if (battle && 'battleId' in battle) {
       console.log('Return battle after attack', JSON.stringify(battle))
       return returnDataResponse(battle, responseHeaders)
-   } catch (err) {
+   } else {
+      const errorMessage = 'An error occurred while attacking'
       console.error(
-         'An error occurred while attacking',
+         errorMessage,
          battleId,
          attackingUnitId,
          defendingUnitId,
-         err.message,
+         battle,
       )
-      return logAndReturnErrorResponse(err.message, responseHeaders, 400)
+      return logAndReturnErrorResponse(errorMessage, responseHeaders, 400)
    }
 }
 
@@ -253,42 +309,27 @@ async function createRegisterPlayerResponse(
             name: requestBody.playername,
          })
          newPlayer.addUnit(jellySlimeUnit)
-         return game.registerPlayer(
+         const maybePlayerId = await game.registerPlayer(
             newPlayer,
             requestBody.playername,
             requestBody.username,
             requestBody.password,
          )
-            .then((playerId) => {
-               console.log(
-                  `Successfully registered user: ${requestBody.username} with playerId ${playerId}`,
-               )
-
-               /* Test purpose only!!!
-               const player = game.getPlayerAccount(playerId)
-               if (player) {
-                  const kv = await getKv()
-                  await kv.set(['playeraccounts', '' + playerId], player)
-
-                  for await (const entry of kv.list({ prefix: ['playeraccounts'] })) {
-                     console.log(`Player in KV, key is ${entry.key}, value is ${JSON.stringify(entry.value)}`)
-                  }
-
-               }
-               */
-
-               return returnDataResponse(
-                  { playerId: playerId },
-                  responseHeaders,
-               )
-            })
-            .catch((err) =>
-               logAndReturnErrorResponse(
-                  `Registering player failed with error: ${err.message}`,
-                  responseHeaders,
-                  400,
-               )
+         if (typeof maybePlayerId === 'string') {
+            console.log(
+               `Successfully registered user: ${requestBody.username} with playerId ${maybePlayerId}`,
             )
+            return returnDataResponse(
+               { playerId: maybePlayerId },
+               responseHeaders,
+            )
+         } else {
+            return logAndReturnErrorResponse(
+               `Registering player failed with error: ${maybePlayerId.errorMessage}`,
+               responseHeaders,
+               400,
+            )
+         }
       } else {
          return logAndReturnErrorResponse(
             'Request body does not have expected fields playername, username and password',
@@ -323,23 +364,25 @@ async function createLoginPlayerResponse(
    try {
       const requestBody = await request.json()
       if (requestBody && requestBody.username && requestBody.password) {
-         return game.login(requestBody.username, requestBody.password)
-            .then((loggedInPlayer) => {
-               console.log(
-                  `Successfully logged in user: ${requestBody.username}`,
-               )
-               return returnDataResponse(
-                  loggedInPlayer,
-                  responseHeaders,
-               )
-            })
-            .catch((err) =>
-               logAndReturnErrorResponse(
-                  `Login for player ${requestBody.username} failed with error: ${err.message}`,
-                  responseHeaders,
-                  400,
-               )
+         const maybeLoggedInPlayer = await game.login(
+            requestBody.username,
+            requestBody.password,
+         )
+         if ('playerId' in maybeLoggedInPlayer) {
+            console.log(
+               `Successfully logged in user: ${requestBody.username}`,
             )
+            return returnDataResponse(
+               maybeLoggedInPlayer,
+               responseHeaders,
+            )
+         } else {
+            return logAndReturnErrorResponse(
+               `Login for player ${requestBody.username} failed with error: ${maybeLoggedInPlayer.errorMessage}`,
+               responseHeaders,
+               400,
+            )
+         }
       } else {
          return logAndReturnErrorResponse(
             'Request body does not have expected fields username and password',
@@ -381,21 +424,21 @@ async function handleRequest(request: Request): Promise<Response> {
    } else {
       const { pathname } = new URL(request.url)
       if (pathname.includes('/createUserBattle')) {
-         return createUserBattleResponse(
+         return await createUserBattleResponse(
             pathname,
             responseHeaders,
             request.headers,
          )
       } else if (pathname.includes('/createBattle')) {
-         return createBattleResponse(responseHeaders)
+         return await createBattleResponse(responseHeaders)
       } else if (pathname.includes('/getBattle')) {
-         return createGetBattleResponse(
+         return await createGetBattleResponse(
             pathname,
             responseHeaders,
             request.headers,
          )
       } else if (pathname.includes('/attack')) {
-         return createAttackResponse(
+         return await createAttackResponse(
             pathname,
             responseHeaders,
             request.headers,
