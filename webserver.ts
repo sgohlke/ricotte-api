@@ -109,7 +109,7 @@ async function createBattleResponse(
       }
    } else {
       return logAndReturnErrorResponse(
-         `An error occurred when using created tutorialBattlePlayerId ${tutorialBattlePlayerId} or opponentId ${opponentId} `,
+         `An error occurred when using created tutorialBattlePlayerId ${JSON.stringify(tutorialBattlePlayerId)} or opponentId ${JSON.stringify(opponentId)} `,
          responseHeaders,
          500,
       )
