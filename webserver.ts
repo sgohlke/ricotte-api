@@ -47,23 +47,36 @@ const opponent: GamePlayer = new GamePlayer({
 opponent.addUnit(slimeUnit)
 opponent.addUnit(punchbagUnit)
 
-const tutorialBattlePlayerId = await playerDataStore.addPlayerAccount({
-   playerId: 'doesnotmatter',
-   name: player.name,
-   userName: player.name,
-   userPassword: crypto.randomUUID(),
-})
+const maybeTutorialPlayerAccount = await playerDataStore
+   .getPlayerAccountForName(player.name)
+
+const tutorialBattlePlayerId =
+   maybeTutorialPlayerAccount && 'playerId' in maybeTutorialPlayerAccount
+      ? maybeTutorialPlayerAccount.playerId
+      : await playerDataStore.addPlayerAccount({
+         playerId: 'doesnotmatter',
+         name: player.name,
+         userName: player.name,
+         userPassword: crypto.randomUUID(),
+      })
+
 if (typeof tutorialBattlePlayerId === 'string') {
    player.playerId = tutorialBattlePlayerId
    await playerDataStore.createPlayer(player)
 }
 
-const opponentId = await playerDataStore.addPlayerAccount({
-   playerId: 'doesnotmatter',
-   name: opponent.name,
-   userName: opponent.name,
-   userPassword: crypto.randomUUID(),
-})
+const maybeOpponentPlayerAccount = await playerDataStore
+   .getPlayerAccountForName(player.name)
+const opponentId =
+maybeOpponentPlayerAccount && 'playerId' in maybeOpponentPlayerAccount
+      ? maybeOpponentPlayerAccount.playerId
+      : await playerDataStore.addPlayerAccount({
+         playerId: 'doesnotmatter',
+         name: opponent.name,
+         userName: opponent.name,
+         userPassword: crypto.randomUUID(),
+      })
+
 if (typeof opponentId === 'string') {
    opponent.playerId = opponentId
    await playerDataStore.createPlayer(opponent)
@@ -109,7 +122,9 @@ async function createBattleResponse(
       }
    } else {
       return logAndReturnErrorResponse(
-         `An error occurred when using created tutorialBattlePlayerId ${JSON.stringify(tutorialBattlePlayerId)} or opponentId ${JSON.stringify(opponentId)} `,
+         `An error occurred when using created tutorialBattlePlayerId ${
+            JSON.stringify(tutorialBattlePlayerId)
+         } or opponentId ${JSON.stringify(opponentId)} `,
          responseHeaders,
          500,
       )
