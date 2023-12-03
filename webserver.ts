@@ -287,14 +287,7 @@ async function createAttackResponse(
       console.log('Return battle after attack', JSON.stringify(battle))
       return returnDataResponse(battle, responseHeaders)
    } else {
-      const errorMessage = 'An error occurred while attacking'
-      console.error(
-         errorMessage,
-         battleId,
-         attackingUnitId,
-         defendingUnitId,
-         battle,
-      )
+      const errorMessage = `An error occurred while attacking: ${battle && battle.errorMessage ? battle.errorMessage : ''}`
       return logAndReturnErrorResponse(errorMessage, responseHeaders, 400)
    }
 }
