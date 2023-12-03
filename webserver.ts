@@ -8,7 +8,6 @@ import {
    PlayerAgainstAIGame,
    randomCounterAttackFunction,
    returnDataResponse,
-   startServer,
 } from './deps.ts'
 
 const port = 3017
@@ -106,9 +105,10 @@ async function createBattleResponse(
       tutorialBattlePlayerId && typeof tutorialBattlePlayerId === 'string' &&
       opponentId && typeof opponentId === 'string'
    ) {
-      const battleId = await game.createBattle(
-         tutorialBattlePlayerId,
-         opponentId,
+      const battleId = await game.createBattle({
+         playerOneId: tutorialBattlePlayerId,
+         playerTwoId: opponentId
+         }
       )
       if (battleId && typeof battleId === 'string') {
          console.log('Created battle', battleId)
@@ -175,12 +175,13 @@ async function createUserBattleResponse(
       )
    } else {
       try {
-         const battleId = await game.createBattle(
-            playerId,
-            opponentId,
-            randomCounterAttackFunction,
-            false,
-            accessTokenOrError.accessToken,
+         const battleId = await game.createBattle({
+            playerOneId: playerId,
+            playerTwoId: opponentId,
+            playerTwoCounterAttackFunction: randomCounterAttackFunction,
+            isTutorialBattle: false,
+            playerOneAccessToken: accessTokenOrError.accessToken,
+         }
          )
          if (battleId && typeof battleId === 'string') {
             console.log('Created battle', battleId)
@@ -472,4 +473,4 @@ async function handleRequest(request: Request): Promise<Response> {
    }
 }
 
-startServer(handleRequest, { port: port })
+Deno.serve({port: port }, handleRequest )
