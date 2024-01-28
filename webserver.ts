@@ -21,7 +21,7 @@ const playerDataStore = useInMemoryDataStore
 
 const jellySlimeUnit = {
    name: 'JellySlime',
-   defaultStatus: { hp: 16, atk: 2, def: 1 },
+   defaultStatus: { hp: 6, atk: 2, def: 1 },
 }
 
 const slimeUnit = {
