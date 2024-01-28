@@ -8,6 +8,7 @@ import {
    PlayerAgainstAIGame,
    randomCounterAttackFunction,
    returnDataResponse,
+   SPDTurnBar,
 } from './deps.ts'
 
 const port = 3017
@@ -107,7 +108,8 @@ async function createBattleResponse(
    ) {
       const battleId = await game.createBattle({
          playerOneId: tutorialBattlePlayerId,
-         playerTwoId: opponentId
+         playerTwoId: opponentId,
+         turnBar: new SPDTurnBar()
          }
       )
       if (battleId && typeof battleId === 'string') {
@@ -181,6 +183,7 @@ async function createUserBattleResponse(
             playerTwoCounterAttackFunction: randomCounterAttackFunction,
             isTutorialBattle: false,
             playerOneAccessToken: accessTokenOrError.accessToken,
+            turnBar: new SPDTurnBar()
          }
          )
          if (battleId && typeof battleId === 'string') {

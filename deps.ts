@@ -3,6 +3,7 @@ export {
    InMemoryPlayerDataStore,
    PlayerAgainstAIGame,
    randomCounterAttackFunction,
+   SPDTurnBar
 } from 'https://raw.githubusercontent.com/sgohlke/rpg-ts/v0.11.0/src/index.ts'
 export {
    KVPlayerDataStore,
