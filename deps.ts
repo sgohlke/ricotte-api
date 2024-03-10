@@ -8,13 +8,10 @@ export {
 export {
    KVPlayerDataStore,
 } from 'https://raw.githubusercontent.com/sgohlke/rpg-ts-kv/v0.1.0/src/index.ts'
-export { 
-   extractAccessTokenFromAuthHeader 
-} from 'https://raw.githubusercontent.com/sgohlke/deno-web/8.2.1/request/extractAccessTokenFromAuthHeader.ts'
+
 export {
+   extractAccessTokenFromAuthHeader,
+   JSON_CONTENT_TYPE_HEADER,
    logAndReturnErrorResponse,
-   returnDataResponse,
-} from 'https://raw.githubusercontent.com/sgohlke/deno-web/8.2.1/response/responseFunctions.ts'
-export { 
-   JSON_CONTENT_TYPE_HEADER 
-} from 'https://raw.githubusercontent.com/sgohlke/deno-web/8.2.1/response/ResponseHeaders.ts'
+   returnDataResponse
+} from 'jsr:@sgohlke/deno-web@^8.2.3'
