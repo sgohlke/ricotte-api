@@ -1,7 +1,10 @@
 {
-   "tasks": {
-      "format": "deno fmt --options-indent-width=3 --options-single-quote --options-no-semicolons",
-      "lint": "deno lint",
-      "start": "deno run --unstable-kv --allow-net webserver.ts"
-   }
+  "tasks": {
+    "format": "deno fmt --options-indent-width=3 --options-single-quote --options-no-semicolons",
+    "lint": "deno lint",
+    "start": "deno run --unstable-kv --allow-net webserver.ts"
+  },
+  "imports": {
+    "@sgohlke/deno-web": "jsr:@sgohlke/deno-web@^8.2.5"
+  }
 }
